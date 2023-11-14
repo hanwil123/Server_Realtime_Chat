@@ -47,6 +47,10 @@ func (h *Handler) JoinRoom(c *gin.Context) {
 		return
 	}
 	var req Models.UserClients
+	if err := c.ShouldBindJSON(&req); err != nil {
+		conn.Close() // Close the WebSocket connection on error
+		return
+	}
 	roomID := c.Param("roomId")
 	cl := &Models.Client{
 		Socket:   conn,
@@ -56,17 +60,15 @@ func (h *Handler) JoinRoom(c *gin.Context) {
 		UserID:   req.UserID,
 	}
 	m := &Models.Message{
-		Content:  "A new room has been joined",
+		Content:  "A new user has been joined",
 		RoomID:   roomID,
 		UserName: req.Username,
 	}
-
 	h.hub.Register <- cl
 	h.hub.Broadcast <- m
 	go cl.WriteMessage()
-	cl.ReadMessage(h.hub)
+	go cl.ReadMessage(h.hub)
 }
-
 func (h *Handler) CreateClients(c *gin.Context) {
 	var req Models.UserClients
 	errr := c.ShouldBindJSON(&req)

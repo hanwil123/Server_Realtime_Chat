@@ -7,18 +7,20 @@ type Room struct {
 }
 
 type Hub struct {
-	Rooms      map[string]*Room
-	Register   chan *Client
-	Unregister chan *Client
-	Broadcast  chan *Message
+	Rooms        map[string]*Room
+	Register     chan *Client
+	Unregister   chan *Client
+	Broadcast    chan *Message
+	QueueMessage chan *Message
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Rooms:      make(map[string]*Room),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Broadcast:  make(chan *Message, 5),
+		Rooms:        make(map[string]*Room),
+		Register:     make(chan *Client),
+		Unregister:   make(chan *Client),
+		Broadcast:    make(chan *Message, 5),
+		QueueMessage: make(chan *Message),
 	}
 }
 
@@ -52,6 +54,7 @@ func (h *Hub) Run() {
 				for _, cl := range h.Rooms[m.RoomID].Clients {
 					cl.Message <- m
 				}
+
 			}
 		}
 	}
