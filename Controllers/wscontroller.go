@@ -1,18 +1,18 @@
 package Controllers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"go-chat/Databases"
 	"go-chat/Models"
 	"net/http"
 )
 
 type Handler struct {
-	hub *Models.Hub
+	hub *Hub
 }
 
-func NewHandler(h *Models.Hub) *Handler {
+func NewHandler(h *Hub) *Handler {
 	return &Handler{
 		hub: h,
 	}
@@ -23,12 +23,12 @@ func (h *Handler) CreateRoom(c *gin.Context) {
 	if err != nil {
 		panic(err)
 	}
-	h.hub.Rooms[req.ID] = &Models.Room{
+	h.hub.Rooms[req.ID] = &Room{
 		ID:      req.ID,
 		Name:    req.Name,
-		Clients: make(map[string]*Models.Client),
+		Clients: make(map[string]*Client),
 	}
-	Databases.RDB.Create(&req)
+	RDB.Create(&req)
 	c.JSON(http.StatusOK, req)
 }
 
@@ -46,47 +46,29 @@ func (h *Handler) JoinRoom(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	var req Models.UserClients
-	if err := c.ShouldBindJSON(&req); err != nil {
-		conn.Close() // Close the WebSocket connection on error
-		return
-	}
+
 	roomID := c.Param("roomId")
-	cl := &Models.Client{
-		Socket:   conn,
-		Message:  make(chan *Models.Message, 10),
-		RoomID:   roomID,
-		UserName: req.Username,
-		UserID:   req.UserID,
+	username := c.Query("username")
+	clientID := c.Query("userId")
+	if err != nil {
+		// Handle error
 	}
-	m := &Models.Message{
+	cl := &Client{
+		Conn:     conn,
+		Message:  make(chan *Message, 10),
+		ID:       clientID,
+		RoomID:   roomID,
+		Username: username,
+	}
+	m := &Message{
 		Content:  "A new user has been joined",
 		RoomID:   roomID,
-		UserName: req.Username,
+		Username: username,
 	}
 	h.hub.Register <- cl
 	h.hub.Broadcast <- m
-	go cl.WriteMessage()
-	go cl.ReadMessage(h.hub)
-}
-func (h *Handler) CreateClients(c *gin.Context) {
-	var req Models.UserClients
-	errr := c.ShouldBindJSON(&req)
-	if errr != nil {
-		panic(errr)
-	}
-
-	// Create new user
-	user := &Models.UserClients{
-		Username: req.Username,
-		UserID:   req.UserID,
-	}
-	result := Databases.CDB.Create(user)
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": result.Error.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, user)
+	go cl.writeMessage()
+	cl.readMessage(h.hub)
 }
 
 type RoomRes struct {
@@ -97,7 +79,7 @@ type RoomRes struct {
 
 func (h *Handler) GetRooms(c *gin.Context) {
 	var rooms []Models.CreateRoomReq
-	Databases.RDB.Find(&rooms)
+	RDB.Find(&rooms)
 
 	roomRes := make([]RoomRes, 0)
 	for _, r := range rooms {
@@ -118,14 +100,21 @@ type ClientRes struct {
 func (h *Handler) GetClients(c *gin.Context) {
 	var clients []ClientRes
 	roomId := c.Param("roomId")
-	if _, ok := h.hub.Rooms[roomId]; !ok {
+	room, roomExists := h.hub.Rooms[roomId]
+	if !roomExists {
 		clients = make([]ClientRes, 0)
 		c.JSON(http.StatusOK, clients)
+		return
 	}
-	for _, c := range h.hub.Rooms[roomId].Clients {
+	if room.Clients == nil {
+		fmt.Printf("Clients pada room tersebut tidak ada")
+		c.JSON(http.StatusOK, clients)
+		return
+	}
+	for _, client := range room.Clients {
 		clients = append(clients, ClientRes{
-			ID:       c.ID,
-			Username: c.UserName,
+			ID:       client.ID,
+			Username: client.Username,
 		})
 	}
 	c.JSON(http.StatusOK, clients)

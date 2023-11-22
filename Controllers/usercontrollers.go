@@ -3,8 +3,6 @@ package Controllers
 import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"go-chat/Databases"
-	"go-chat/Models"
 	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"net/http"
@@ -23,16 +21,15 @@ func (h *Handler) RegisterClients(c *gin.Context) {
 	}
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(data["password"]), 14)
-	rand.NewSource(time.Now().UnixNano())
 	randomUserID := uint(rand.Intn(10000) + 1)
 	// Create new user
-	user := &Models.UserClients{
+	user := &Client{
 		UserID:   uint64(randomUserID),
 		Username: data["username"],
 		Email:    data["email"],
 		Password: password,
 	}
-	result := Databases.CDB.Create(&user)
+	result := UDB.Create(&user)
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": result.Error.Error()})
 		return
@@ -47,9 +44,9 @@ func (h *Handler) LoginClients(c *gin.Context) {
 		panic(err)
 	}
 
-	var user Models.UserClients
-	Databases.RDB.Where("email = ?", data["email"]).First(&user)
-	if user.ID == 0 {
+	var user Client
+	RDB.Where("email = ?", data["email"]).First(&user)
+	if user.ID == "" {
 		c.JSON(http.StatusNotFound, gin.H{"Message": "User Not Found"})
 		return
 	}
@@ -61,7 +58,7 @@ func (h *Handler) LoginClients(c *gin.Context) {
 	}
 
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Issuer:    strconv.Itoa(int(user.ID)),
+		Issuer:    user.ID,
 		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
 	})
 

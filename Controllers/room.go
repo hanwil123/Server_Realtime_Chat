@@ -1,4 +1,4 @@
-package Models
+package Controllers
 
 type Room struct {
 	ID      string             `json:"id"`
@@ -7,20 +7,18 @@ type Room struct {
 }
 
 type Hub struct {
-	Rooms        map[string]*Room
-	Register     chan *Client
-	Unregister   chan *Client
-	Broadcast    chan *Message
-	QueueMessage chan *Message
+	Rooms      map[string]*Room
+	Register   chan *Client
+	Unregister chan *Client
+	Broadcast  chan *Message
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Rooms:        make(map[string]*Room),
-		Register:     make(chan *Client),
-		Unregister:   make(chan *Client),
-		Broadcast:    make(chan *Message, 5),
-		QueueMessage: make(chan *Message),
+		Rooms:      make(map[string]*Room),
+		Register:   make(chan *Client),
+		Unregister: make(chan *Client),
+		Broadcast:  make(chan *Message, 5),
 	}
 }
 
@@ -42,7 +40,7 @@ func (h *Hub) Run() {
 						h.Broadcast <- &Message{
 							Content:  "User left the chat",
 							RoomID:   cl.RoomID,
-							UserName: cl.UserName,
+							Username: cl.Username,
 						}
 					}
 					delete(h.Rooms[cl.RoomID].Clients, cl.ID)

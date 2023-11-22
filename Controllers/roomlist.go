@@ -1,4 +1,4 @@
-package Databases
+package Controllers
 
 import (
 	"go-chat/Models"

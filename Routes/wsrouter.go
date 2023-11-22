@@ -23,6 +23,8 @@ func WsRouter(wsHandler *Controllers.Handler) {
 	r.GET("/ws/GetRoom", wsHandler.GetRooms)
 	r.POST("/ws/GetRoom", wsHandler.GetRooms)
 	r.GET("/ws/GetClients/:roomId", wsHandler.GetClients)
+	r.POST("/ws/GetClients/:roomId", wsHandler.GetClients)
+
 }
 
 func Start(addr string) error {
