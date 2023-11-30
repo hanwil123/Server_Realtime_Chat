@@ -51,7 +51,7 @@ func (h *Handler) JoinRoom(c *gin.Context) {
 	username := c.Query("username")
 	clientID := c.Query("userId")
 	if err != nil {
-		// Handle error
+		c.JSON(http.StatusNotFound, "join room gagal")
 	}
 	cl := &Client{
 		Conn:     conn,
